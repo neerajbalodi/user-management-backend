@@ -1,0 +1,16 @@
+- name: Update Backend Source Code
+  hosts: localhost
+  tasks:
+    # Task 1: Update UserController.java (@CrossOrigin)
+    - name: Update Frontend IP in UserController
+      replace:
+        path: "{{ WORKSPACE }}/src/main/java/com/app/controller/UserController.java"
+        regexp: 'http://localhost:4200'
+        replace: "http://{{ FE_IP }}:4200"
+
+    # Task 2: Update application.properties (DB Connection)
+    - name: Update Database IP in application.properties
+      replace:
+        path: "{{ WORKSPACE }}/src/main/resources/application.properties"
+        regexp: 'localhost'
+        replace: "{{ DB_IP }}"
