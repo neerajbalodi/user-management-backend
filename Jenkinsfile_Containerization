@@ -1,0 +1,87 @@
+pipeline {
+    agent any
+    
+    tools {
+        maven 'Maven3'
+        jdk 'JDK17'
+    }
+    
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+        DOCKERHUB_USERNAME    = 'neeraj06092024'
+        IMAGE_NAME            = 'user-management-backend'
+        IMAGE_TAG             = "${BUILD_NUMBER}"
+        AWS_ACCESS_KEY        = credentials('aws-access-key')
+        AWS_SECRET_KEY        = credentials('aws-secret-key')
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/neerajbalodi/user-management-backend.git'
+            }
+        }
+        
+        stage('Build JAR') {
+            steps {
+                sh 'mvn clean package -DskipTests'
+            }
+        }
+        
+        stage('Build Docker Image') {
+            steps {
+                sh """
+                    docker build -t ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG} .
+                    docker tag ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG} \
+                               ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest
+                """
+            }
+        }
+        
+        stage('Push to Docker Hub') {
+            steps {
+                sh """
+                    echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login \
+                        -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin
+                    
+                    docker push ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}
+                    docker push ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest
+                """
+            }
+        }
+        
+        stage('Deploy to Backend EC2') {
+            steps {
+                script {
+                    def dockerPass = env.DOCKERHUB_CREDENTIALS_PSW
+                    sh """
+                        ansible-playbook -i /home/ubuntu/ansible/inventory/hosts \
+                            /home/ubuntu/ansible/playbooks/deploy_backend_docker.yml \
+                            --private-key=/var/lib/jenkins/.ssh/user.pem \
+                            -e "aws_access_key=${AWS_ACCESS_KEY}" \
+                            -e "aws_secret_key=${AWS_SECRET_KEY}" \
+                            -e "aws_s3_bucket=user-management-s3-bucket-syn" \
+                            -e "aws_s3_region=ca-central-1" \
+                            -e "image_tag=${IMAGE_TAG}" \
+                            -e "dockerhub_username=${DOCKERHUB_USERNAME}" \
+                            -e "dockerhub_password=${dockerPass}" \
+                            -e "image_name=${IMAGE_NAME}"
+                    """
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo "✅ Docker container deployed!"
+        }
+        failure {
+            echo "❌ Deployment failed!"
+        }
+        always {
+            sh 'docker system prune -f'
+        }
+    }
+}
