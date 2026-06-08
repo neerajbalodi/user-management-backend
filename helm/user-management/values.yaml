@@ -1,0 +1,90 @@
+# -- Default values for user-management (local/dev environment)
+
+replicaCount: 1
+
+image:
+  repository: neeraj06092024/user-management-backend
+  tag: latest
+  pullPolicy: Always
+
+namespace: production
+
+service:
+  type: LoadBalancer
+  port: 8080
+
+# -- Application configuration (injected via ConfigMap)
+config:
+  datasourceUrl: "jdbc:mysql://mysql:3306/users"
+  datasourceUsername: "root"
+  hibernateDdlAuto: "update"
+  hibernateDialect: "org.hibernate.dialect.MySQL8Dialect"
+  jwtExpiration: "86400000"
+  s3BucketName: "user-123-management"
+  s3Region: "eu-north-1"
+  corsAllowedOrigins: "http://localhost:4200"
+  rabbitmqHost: "rabbitmq"
+  rabbitmqPort: "5672"
+  rabbitmqUsername: "admin"
+  rabbitmqPassword: "password"
+
+# -- Secrets (override via --set or values-prod.yaml)
+secrets:
+  dbPassword: "root1234"
+  jwtSecret: "dGhpc0lzQVZlcnlMb25nU2VjcmV0S2V5Rm9ySldUVG9rZW5HZW5lcmF0aW9uMTIzNDU2Nzg5MA=="
+  awsAccessKey: "dummy-access-key"
+  awsSecretKey: "dummy-secret-key"
+
+# -- Resource limits
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "250m"
+  limits:
+    memory: "1Gi"
+    cpu: "500m"
+
+# -- Probes
+probes:
+  liveness:
+    path: /actuator/health
+    initialDelaySeconds: 90
+    periodSeconds: 10
+  readiness:
+    path: /actuator/health
+    initialDelaySeconds: 60
+    periodSeconds: 5
+
+# -- Horizontal Pod Autoscaler
+hpa:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 5
+  cpuUtilization: 70
+  memoryUtilization: 80
+
+# -- Monitoring stack
+monitoring:
+  prometheus:
+    enabled: true
+    image: prom/prometheus:v2.51.0
+    retention: 15d
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+  grafana:
+    enabled: true
+    image: grafana/grafana:10.4.2
+    adminUser: admin
+    adminPassword: admin
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "300m"

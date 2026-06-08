@@ -1,0 +1,83 @@
+# =============================================================
+# Prometheus Scrape Configuration
+# =============================================================
+# Prometheus scrapes /actuator/prometheus every 15 seconds.
+#
+# For local docker-compose:  host.docker.internal:8080
+# For Kubernetes:            backend-service.production.svc.cluster.local:8080
+# =============================================================
+
+global:
+  scrape_interval:     15s   # How often to scrape targets
+  evaluation_interval: 15s   # How often to evaluate alerting rules
+  scrape_timeout:      10s
+
+  # Global labels applied to every time-series
+  external_labels:
+    env: 'local'
+    project: 'user-management'
+
+# -----------------------------------------------------------
+# Alerting rules (optional — extend later)
+# -----------------------------------------------------------
+rule_files:
+  # - "alert_rules.yml"
+
+# -----------------------------------------------------------
+# Scrape Jobs
+# -----------------------------------------------------------
+scrape_configs:
+
+  # Prometheus scrapes itself for self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # -----------------------------------------------------------
+  # Spring Boot Application
+  # -----------------------------------------------------------
+  - job_name: 'user-management-backend'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
+
+    # 'host.docker.internal' resolves to the host machine from Docker.
+    # Replace with actual host/IP in staging or production environments.
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+        labels:
+          application: 'user-management'
+          environment: 'local'
+
+  # -----------------------------------------------------------
+  # Kubernetes scraping (when deployed on EKS / any K8s cluster)
+  # Uncomment and remove the static_configs block above when in K8s.
+  # Requires kube-state-metrics and node-exporter to be installed.
+  # -----------------------------------------------------------
+  # - job_name: 'user-management-k8s'
+  #   metrics_path: '/actuator/prometheus'
+  #   kubernetes_sd_configs:
+  #     - role: pod
+  #       namespaces:
+  #         names:
+  #           - production
+  #   relabel_configs:
+  #     - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+  #       action: keep
+  #       regex: "true"
+  #     - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+  #       action: replace
+  #       target_label: __metrics_path__
+  #       regex: (.+)
+  #     - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+  #       action: replace
+  #       regex: ([^:]+)(?::\d+)?;(\d+)
+  #       replacement: $1:$2
+  #       target_label: __address__
+  #     - action: labelmap
+  #       regex: __meta_kubernetes_pod_label_(.+)
+  #     - source_labels: [__meta_kubernetes_namespace]
+  #       action: replace
+  #       target_label: kubernetes_namespace
+  #     - source_labels: [__meta_kubernetes_pod_name]
+  #       action: replace
+  #       target_label: kubernetes_pod_name

@@ -1,0 +1,14 @@
+# -- Staging environment overrides
+
+replicaCount: 2
+
+namespace: staging
+
+config:
+  datasourceUrl: "jdbc:mysql://staging-db:3306/users"
+  datasourceUsername: "admin"
+  corsAllowedOrigins: "https://staging.yourdomain.com"
+
+hpa:
+  minReplicas: 2
+  maxReplicas: 5

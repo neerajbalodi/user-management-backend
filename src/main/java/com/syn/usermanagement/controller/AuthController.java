@@ -8,6 +8,8 @@ import com.syn.usermanagement.repository.UserRepository;
 import com.syn.usermanagement.security.CustomUserDetailsService;
 import com.syn.usermanagement.security.JwtUtils;
 import com.syn.usermanagement.service.TokenBlacklistService;
+import com.syn.usermanagement.service.UserMetricsService;
+import io.micrometer.core.instrument.Timer;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +41,7 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
     private final TokenBlacklistService tokenBlacklistService;
+    private final UserMetricsService userMetricsService;
 
     /**
      * Login endpoint
@@ -52,6 +55,9 @@ public class AuthController {
 
         logger.info("🔐 LOGIN ATTEMPT - Email: {} - IP: {}",
                 loginRequest.getEmail(), clientIp);
+
+        // Start timer to measure login processing duration
+        Timer.Sample timerSample = userMetricsService.startLoginTimer();
 
         try {
             Authentication authentication = authenticationManager.authenticate(
@@ -68,6 +74,9 @@ public class AuthController {
             logger.info("✅ LOGIN SUCCESS - Email: {} - UserId: {} - IP: {}",
                     user.getEmail(), user.getId(), clientIp);
 
+            userMetricsService.incrementLoginSuccess();
+            userMetricsService.stopLoginTimer(timerSample);
+
             LoginResponse response = new LoginResponse(
                     token,
                     user.getId(),
@@ -82,11 +91,17 @@ public class AuthController {
             logger.warn("❌ LOGIN FAILED - Email: {} - Reason: Invalid credentials - IP: {}",
                     loginRequest.getEmail(), clientIp);
 
+            userMetricsService.incrementLoginFailed();
+            userMetricsService.stopLoginTimer(timerSample);
+
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "Invalid email or password"));
         } catch (Exception e) {
             logger.error("🔥 LOGIN ERROR - Email: {} - Error: {} - IP: {}",
                     loginRequest.getEmail(), e.getMessage(), clientIp, e);
+
+            userMetricsService.incrementLoginFailed();
+            userMetricsService.stopLoginTimer(timerSample);
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Login failed"));
@@ -110,6 +125,7 @@ public class AuthController {
             logger.warn("⚠️ REGISTRATION FAILED - Email: {} - Reason: Email already exists - IP: {}",
                     registerRequest.getEmail(), clientIp);
 
+            userMetricsService.incrementRegistrationFailed();
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("message", "Email already exists"));
         }
@@ -125,6 +141,8 @@ public class AuthController {
 
             logger.info("✅ REGISTRATION SUCCESS - Email: {} - UserId: {} - IP: {}",
                     savedUser.getEmail(), savedUser.getId(), clientIp);
+
+            userMetricsService.incrementRegistrationSuccess();
 
             UserDetails userDetails = userDetailsService.loadUserByUsername(savedUser.getEmail());
             String token = jwtUtils.generateToken(userDetails);
@@ -171,6 +189,7 @@ public class AuthController {
             tokenBlacklistService.blacklistToken(token);
 
             logger.info("🚪 LOGOUT SUCCESS - Email: {} - IP: {}", userEmail, clientIp);
+            userMetricsService.incrementLogout();
 
             return ResponseEntity.ok(Map.of(
                     "message", "Logged out successfully",

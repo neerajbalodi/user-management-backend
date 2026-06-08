@@ -23,6 +23,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final S3Service s3Service;
+    private final UserMetricsService userMetricsService;
 
     public Page<User> getAllUsers(Pageable pageable) {
         logger.debug("FETCH_USERS | Page: {} | Size: {}", pageable.getPageNumber(), pageable.getPageSize());
@@ -57,6 +58,8 @@ public class UserService {
         User savedUser = userRepository.save(user);
 
         logger.info("CREATE_USER_SUCCESS | UserId: {} | Email: {}", savedUser.getId(), savedUser.getEmail());
+        userMetricsService.incrementUserCreated();
+        userMetricsService.incrementActiveUsers();
 
         return savedUser;
     }
@@ -89,6 +92,7 @@ public class UserService {
                 id,
                 !oldEmail.equals(updatedUser.getEmail()),
                 !oldName.equals(updatedUser.getName()));
+        userMetricsService.incrementUserUpdated();
 
         return updatedUser;
     }
@@ -103,6 +107,8 @@ public class UserService {
         userRepository.delete(user);
 
         logger.info("DELETE_USER_SUCCESS | UserId: {} | Email: {}", id, email);
+        userMetricsService.incrementUserDeleted();
+        userMetricsService.decrementActiveUsers();
     }
 
     /**
@@ -133,12 +139,14 @@ public class UserService {
             User savedUser = userRepository.save(user);
 
             logger.info("PHOTO_UPLOAD_SUCCESS | UserId: {} | PhotoUrl: {}", userId, photoUrl);
+            userMetricsService.incrementPhotoUploadSuccess();
 
             return savedUser;
 
         } catch (Exception e) {
             logger.error("PHOTO_UPLOAD_ERROR | UserId: {} | FileName: {} | Error: {}",
                     userId, file.getOriginalFilename(), e.getMessage(), e);
+            userMetricsService.incrementPhotoUploadError();
             throw e;
         }
     }

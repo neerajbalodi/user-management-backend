@@ -1,0 +1,19 @@
+# -- Production environment overrides
+
+replicaCount: 3
+
+namespace: production
+
+config:
+  datasourceUrl: "jdbc:mysql://prod-rds-endpoint:3306/users"
+  datasourceUsername: "admin"
+  hibernateDdlAuto: "validate"
+  corsAllowedOrigins: "https://yourdomain.com"
+
+hpa:
+  minReplicas: 3
+  maxReplicas: 10
+
+monitoring:
+  grafana:
+    adminPassword: "ChangeMe123!"

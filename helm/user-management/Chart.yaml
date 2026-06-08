@@ -1,0 +1,6 @@
+apiVersion: v2
+name: user-management
+description: Spring Boot User Management CRUD Application
+type: application
+version: 0.1.1
+appVersion: "0.0.1-SNAPSHOT"

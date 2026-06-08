@@ -1,0 +1,19 @@
+# =============================================================
+# Grafana — Auto-provisioned Prometheus Datasource
+# =============================================================
+# This file is loaded automatically when Grafana starts.
+# No manual configuration needed.
+# =============================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      httpMethod: POST
+      timeInterval: '15s'

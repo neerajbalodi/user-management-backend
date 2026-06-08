@@ -2,27 +2,27 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
-  namespace: production
+  namespace: {{ include "user-management.namespace" . }}
+  labels:
+    {{- include "user-management.labels" . | nindent 4 }}
 spec:
-  replicas: 2
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: backend
+      {{- include "user-management.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: backend
+        {{- include "user-management.selectorLabels" . | nindent 8 }}
       annotations:
-        # Prometheus auto-discovery annotations
-        # These are read by the Prometheus K8s SD relabel_configs in prometheus-configmap.yaml
         prometheus.io/scrape: "true"
         prometheus.io/path: "/actuator/prometheus"
         prometheus.io/port: "8080"
     spec:
       containers:
         - name: backend
-          image: neeraj06092024/user-management-backend:latest
-          imagePullPolicy: Always
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - containerPort: 8080
               name: http
@@ -52,20 +52,20 @@ spec:
                 name: backend-config
           resources:
             requests:
-              memory: "512Mi"
-              cpu: "250m"
+              memory: {{ .Values.resources.requests.memory | quote }}
+              cpu: {{ .Values.resources.requests.cpu | quote }}
             limits:
-              memory: "1Gi"
-              cpu: "500m"
+              memory: {{ .Values.resources.limits.memory | quote }}
+              cpu: {{ .Values.resources.limits.cpu | quote }}
           livenessProbe:
             httpGet:
-              path: /actuator/health
+              path: {{ .Values.probes.liveness.path }}
               port: 8080
-            initialDelaySeconds: 90
-            periodSeconds: 10
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
           readinessProbe:
             httpGet:
-              path: /actuator/health
+              path: {{ .Values.probes.readiness.path }}
               port: 8080
-            initialDelaySeconds: 60
-            periodSeconds: 5
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
