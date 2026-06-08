@@ -1,6 +1,6 @@
 # -- Default values for user-management (local/dev environment)
 
-replicaCount: 1
+replicaCount: 2
 
 image:
   repository: neeraj06092024/user-management-backend
